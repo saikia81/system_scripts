@@ -1,0 +1,39 @@
+#!/bin/python
+import os,sys
+
+# returns the found package or False
+def find_tar_xz(name):
+    for d in os.walk('AUR/{}/'.format(name)):
+        for i in d[2]:
+            if len(i) >= 2 and i[-2:] == 'xz':
+                 return (i)
+    return False
+
+if len(sys.argv) == 2:
+    pkg_name = sys.argv[1]
+elif len(sys.argv) == 1:
+    pkg_name = input("|name > ")
+else:
+    print("too many arguments!")
+    exit()   
+
+errn=os.system("git clone https://aur.archlinux.org/{}.git".format(pkg_name))
+if errn == 32768:
+    os.system("rm -d -R {}".format(pkg_name)) if input('remove old pkg (y/N)> ').lower() == 'y' else print('aborted\n')
+    errn=os.system("git -c clone aur.archlinux.org/{}.git".format(pkg_name))
+
+print("--- PKGBUILD {} ---".format(pkg_name))
+os.system("cat {}/PKGBUILD".format(pkg_name))
+
+if input("MAKE package? (y/N) ").lower() == 'y':
+    os.system("cd {}//; makepkg -sri".format(pkg_name))
+
+if input("\n install package? (y/N) ").lower() == 'y':
+    tar_xz = find_tar_xz(pkg_name)
+    
+    if tar_xz:
+        os.system("sudo pacman -U '{}/{}'".format(pkg_name, tar_xz))
+    else:
+        print("\nCould not find tar.xz package!")
+            
+            

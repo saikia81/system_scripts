@@ -1,0 +1,7 @@
+#!/bin/python
+
+backup_files = ['thoughts', 'ideas']
+
+def backup(absolute_paths):
+    #move all files to th backup location, relative to their absolute_path
+    pass

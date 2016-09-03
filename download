@@ -9,31 +9,56 @@ def find_tar_xz(name):
                  return (i)
     return False
 
-if len(sys.argv) == 2:
-    pkg_name = sys.argv[1]
-elif len(sys.argv) == 1:
-    pkg_name = input("|name > ")
-else:
-    print("too many arguments!")
-    exit()   
+def get_parameters():
+    if len(sys.argv) == 2:
+        return sys.argv[1]
+    elif len(sys.argv) == 1:
+        return input("|name > ")
+    else:
+        print("too many arguments!")
+        exit()
 
-errn=os.system("git clone https://aur.archlinux.org/{}.git".format(pkg_name))
-if errn == 32768:
+def purge_pkg_dir(pkg_name):
     os.system("rm -d -R {}".format(pkg_name)) if input('remove old pkg (y/N)> ').lower() == 'y' else print('aborted\n')
-    errn=os.system("git -c clone aur.archlinux.org/{}.git".format(pkg_name))
+        
+def download_pkg(pkg_name):
+    os.mkdir('~/AUR')
+    try:
+        os.chdir('~/AUR/') #user should have a directory here!
+    except FileNotFoundError:
+        print("[!] could not create or access ~/AUR/")
+        return False
+    if os.system("git pull") == 0: return True
+    
+    errn=os.system("git clone https://aur.archlinux.org/{}.git".format(pkg_name))     
+    return True
 
-print("--- PKGBUILD {} ---".format(pkg_name))
-os.system("cat {}/PKGBUILD".format(pkg_name))
+def make_pkg(pkg_name):
+    print(\
+"""####################################################"
+## Are you sure you want to install this package? ##
+####################################################\n""")
+    print("--- PKGBUILD {} ---".format(pkg_name))
+    os.system("cat {}/PKGBUILD".format(pkg_name))
 
-if input("MAKE package? (y/N) ").lower() == 'y':
-    os.system("cd {}//; makepkg -sri".format(pkg_name))
+    if input("MAKE package? (y/N) ").lower() == 'y':
+        os.system("cd {}//; makepkg -sri".format(pkg_name))
 
-if input("\n install package? (y/N) ").lower() == 'y':
-    tar_xz = find_tar_xz(pkg_name)
+def install_pkg(pkg_name):
+    if input("\n install package? (y/N) ").lower() == 'y':
+        tar_xz = find_tar_xz(pkg_name)
     
     if tar_xz:
         os.system("sudo pacman -U '{}/{}'".format(pkg_name, tar_xz))
     else:
         print("\nCould not find tar.xz package!")
+
+
+def main():
+    pkg_name = get_parameters()
+    download_pkg(pkg_name)
+    make_pkg(pkg_name)
+    install_pkg(pkg_name) #this is for the case in which making the package doesn't actually install it
             
-            
+if __name__ == '__main__':
+    main()

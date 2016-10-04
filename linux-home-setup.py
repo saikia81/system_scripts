@@ -15,6 +15,6 @@ if __name__ == '__main__':
     try:
         function = eval(input('function?: '))
     except Exception as ex:
-        print("[-] function not found: {}".format(function))
+        print("[-] function not found: {}\n".format(function))
         print(ex.message)
     function()

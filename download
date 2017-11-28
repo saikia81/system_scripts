@@ -2,6 +2,37 @@
 import os,sys
 import subprocess
 
+# key-value store with settings and data
+# including pkg databse 
+class Database:
+    """the data is stored as a list of pkgnames corresponding to a dictionary with information about the package"""
+    def __init__i(data=None):
+        if not data:
+            data = {}
+        try:
+            with open("database.py", 'r') as database:
+                data = database.readlines()
+        except Exception as ex:
+            print("[-] Error: " + repr(ex))
+            populate_database()
+        self.temp = data
+
+    @staticmethod
+    def find_packages(directory=''):
+        # index all directories
+        pakages = {}
+        packages_in_dir = subprocess.Popen(['ls', directory], stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.read().decode("utf-8")
+        pacman_database = subprocess.Popen(['pacman', '-Q'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.read().decode("utf-8")
+        pacman_data = [pkg.split(" ") for pkg in pacman_database.split('\n')]
+        packages.update({pkg:{'version': ver, 'database': pacman} for pkg, ver in pacman_data})
+
+        return packages
+
+
+    def populate_database():
+        self.data.update(find_packages())
+
+
 def init():
     try:
         os.mkdir(os.environ['HOME'] + '/AUR/')
@@ -12,7 +43,7 @@ def init():
         return False
 
     try:
-        os.chdir(os.environ['HOME'] + '/AUR/')  # package directory
+        os.chdir(os.environ['HOME'] + '/AUR/')  # package manager default directory
     except FileNotFoundError:
         print("[!] could not access ~/AUR/")
         return False
@@ -37,39 +68,45 @@ def get_parameters():
 
 def purge_pkg_dir(pkg_name):
     os.system("rm -d -R {}".format(pkg_name)) if input('remove old pkg (y/N)> ').lower() == 'y' else print('aborted\n')
-    
+
+def backup_pkg(pkg_name):
+    pass
+   
 # return True if the package is updated
 def download_pkg(pkg_name):
     output = subprocess.Popen(['git', 'pull'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.read().decode("utf-8") 
     
-    if 'Not a git repository' in output:
-        print("Downloading NEW package: {}".format(pkg_name))
+    if 'no remote repository specified' in output.lower():
+        print("\nCloning package: {}".format(pkg_name))
         os.system("git clone https://aur.archlinux.org/{}.git".format(pkg_name))
         return True
-    elif 'Already up-to-date' in output:
-        print("allready UP-TO-DATE")
-        return False
-    elif 'files changed' in output:
+    elif 'not a git repository' in output.lower():
+        print("\nCloning package: {}".format(pkg_name))
+        os.system("git clone https://aur.archlinux.org/{}.git".format(pkg_name))
         return True
-    else:
+    elif 'already up-to-date' in output.lower():
+        print("already UP-TO-DATE")
         return False
-    return True
+    elif 'files changed' in output.lower():
+        print("[+]git repository updated!")
+        return True
+    return False
     
-# make pacakge with 'makepkg -sri'
+# make package with 'makepkg -sri'
 # confirmation required
 def make_pkg(pkg_name, dont_ask=False):
     if dont_ask == True:
-        os.system("cd {}//; makepkg -sri".format(pkg_name))
+        os.system("cd {}; makepkg -sri -f -c".format(pkg_name))
         return True
     print(\
-"""####################################################"
-## Are you sure you want to install this package? ##
-####################################################\n""")
+"""
+[W] Are you sure you want to install this package on you system? 
+""")
     print("--- PKGBUILD {} ---".format(pkg_name))
     os.system("vim {}/PKGBUILD".format(pkg_name))
     
     if input("MAKE package? (y/N) ").lower() == 'y':
-        os.system("cd {}//; makepkg -sri".format(pkg_name))
+        os.system("cd {}; makepkg -sri -f -c".format(pkg_name))
 
 def install_pkg(pkg_name, dont_ask=False):
     print("[!] only nescessary when package hasn't been installed by makepkg")
@@ -88,14 +125,24 @@ def multiple_packages(pkg_names):
             print("[+] package downloaded: {}".format(pkg_name))
         else:
             print("[!] ERROR downloading package: {}".format(pkg_name))
-        make_pkg(pkg_name, dont_ask=True)
-        intall_pkg(pkg_name, dont_ask=True)
+        make_pkg(pkg_name)
+        install_pkg(pkg_name)
+
+def clean_package(pkg_name):
+    pkg = find_tar_xz(pkg_name)
+    if pkg != False:
+        os.system("rm {}".format(pkg))
+        return True
+    else:
+        return False
+
 
 def main():
     if not init(): exit()
     params = get_parameters()
     if type(params) == list:
        multiple_packages(params)
+       return 0
     else:
         pkg_name = params
 
@@ -105,7 +152,10 @@ def main():
         print("[w] Nothing was downloaded")
         if input("\n continue? [Y/n] ").lower() == 'n': return
     make_pkg(pkg_name)
-    install_pkg(pkg_name) #this is for the case in which making the package doesn't install it
+    install_pkg(pkg_name) #this is in case that making the package doesn't install it
             
 if __name__ == '__main__':
-    main()
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt as ex:
+        sys.exit(1)
